@@ -2,6 +2,7 @@ import { bus } from '../bus.js';
 import { config } from '../config.js';
 import { store } from '../db/index.js';
 import { createLogger } from '../logger.js';
+import { selectContract } from '../options/select.js';
 import { RiskManager } from '../risk/manager.js';
 import { engineState } from '../state.js';
 import { createStrategy } from '../strategy/index.js';
@@ -111,6 +112,55 @@ export function createPipeline() {
         log.warn(`no quote for ${s.symbol}, skipping buy`);
         continue;
       }
+
+      // OPTIONS play: resolve a contract and buy_to_open (one contract = 100 shares).
+      if (s.option) {
+        try {
+          const contract = await selectContract(broker, {
+            underlying: s.symbol,
+            type: s.option.type,
+            spot: quote.price,
+            moneyness: s.option.moneyness,
+            expiration: s.option.expiration,
+          });
+          if (!contract) {
+            recordSignal({ ...s, reason: `${s.reason} (no contract found)` }, strategy.name, false);
+            continue;
+          }
+          const order = await broker.placeOrder({
+            symbol: contract.symbol,
+            side: 'buy',
+            qty: 1,
+            type: 'market',
+            timeInForce: 'day',
+          });
+          recordSignal({ ...s, reason: `${s.reason} → ${contract.symbol}` }, strategy.name, true);
+          store.recordOrder({
+            id: order.id,
+            ts: order.submittedAt,
+            symbol: contract.symbol,
+            side: 'buy',
+            qty: order.qty,
+            type: order.type,
+            status: order.status,
+            filled_avg_price: order.filledAvgPrice ?? null,
+            reason: s.reason,
+          });
+          bus.emit('order', {
+            ts: order.submittedAt,
+            id: order.id,
+            symbol: contract.symbol,
+            side: 'buy',
+            qty: order.qty,
+            status: order.status,
+          });
+          log.info(`BUY 1 ${s.option.type} ${contract.symbol} — ${s.reason}`);
+        } catch (err) {
+          log.error(`option buy failed ${s.symbol}`, (err as Error).message);
+        }
+        continue;
+      }
+
       const plan = risk.planEntry(s.symbol, quote.price, account);
       if (!plan) {
         recordSignal({ ...s, reason: `${s.reason} (skipped: position too small)` }, strategy.name, false);

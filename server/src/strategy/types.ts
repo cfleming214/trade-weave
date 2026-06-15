@@ -12,6 +12,18 @@ export interface Signal {
   action: SignalAction;
   /** Human-readable justification, stored in the audit log + shown on the dashboard. */
   reason: string;
+  /**
+   * When present, this signal is an OPTIONS play on `symbol` (the underlying):
+   * the pipeline resolves a concrete contract from the chain and trades it.
+   * Absent for plain equity/crypto signals.
+   */
+  option?: {
+    type: 'call' | 'put';
+    /** Target expiration (YYYY-MM-DD). Pipeline picks the nearest available if omitted. */
+    expiration?: string;
+    /** How far OTM/ITM to target, as a fraction of spot (0 = ATM, +0.05 = 5% OTM call). */
+    moneyness?: number;
+  };
 }
 
 /** Everything a strategy needs to make a decision on a given tick. */
