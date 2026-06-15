@@ -2,63 +2,97 @@
 
 ## Overview
 
-TradeWeave is an AI-powered trading bot platform that automates cryptocurrency and stock trading. Users can set trading strategies once and let intelligent algorithms execute trades 24/7, optimizing for profit while managing risk. The mobile app provides real-time portfolio monitoring, strategy customization, and performance analytics.
+TradeWeave is a **personal, self-hosted trading bot** — for the author's own use, not a commercial product. A local Node service runs on your own machine as both the brain and the execution engine: it watches the market and autonomously manages positions (stop-losses, auto-buys, take-profits, and options puts/calls), executing through Alpaca. A private React Native / Expo app, distributed to yourself via TestFlight, provides monitoring and a kill-switch.
+
+Everything runs locally except unavoidable outbound calls to Alpaca's market-data and trading APIs. There is no SaaS, no user tiers, no marketplace, and no monetization.
+
+## Architecture (local-first)
+
+- **`server/` — local Node service (the core).** An always-on process on your machine. Responsibilities: market-data ingestion, the decision engine, risk/position management, order execution, local persistence, and a local API/WebSocket the app connects to.
+- **`app/` — React Native + Expo monitor (personal, TestFlight).** A read-only dashboard and status view that talks to the local server over your LAN via WebSocket. Includes a kill-switch.
+- **Broker-adapter layer.** A single `BrokerAdapter` interface implemented by `AlpacaAdapter` now, leaving room for an `IBKRAdapter` later without touching strategy code.
+
+**Data flow:** market data → strategy engine → risk checks → broker adapter → Alpaca; fills and position updates stream back to the app.
 
 ## Tech Stack
 
-- **Frontend**: React Native + Expo for iOS/Android cross-platform development
-- **State Management**: Redux Toolkit for predictable app state and trading data
-- **Backend**: Node.js/Express with WebSocket support for real-time market data
-- **AI/ML**: TensorFlow.js for on-device ML models and Python FastAPI for server-side trading algorithms
-- **APIs**: Binance, Coinbase, Alpaca APIs for market data and trade execution
+- **Server:** Node.js + TypeScript, Express + WebSocket (`ws`), and a scheduler loop driving the trading cadence.
+- **Broker / data:** Alpaca Trading API + Market Data API (REST + WebSocket), via `@alpacahq/alpaca-trade-api` (or direct REST) behind the adapter.
+- **Decision engine:** pluggable strategy modules — `technical` (indicator library such as `technicalindicators`) and `llm` (Claude via the Anthropic SDK, latest model). The active mode is chosen via config.
+- **Persistence:** local SQLite (e.g. `better-sqlite3`) for positions, orders, signals, and the audit log. No cloud database.
+- **Config / secrets:** local `.env` for Alpaca and Anthropic API keys; `config.json`/env for engine mode, asset universe, risk parameters, and the paper-vs-live toggle.
+- **App:** React Native + Expo with minimal state (Context or a lightweight store — Redux optional, not required for a monitor).
+
+**Dropped from the earlier concept:** Binance/Coinbase, FastAPI, monetization tiers, the strategy marketplace, and push-as-a-product. (Local push/notifications are kept as a personal convenience.)
 
 ## Features
 
-1. **AI Strategy Engine** — Machine learning models analyze market patterns and automatically adjust trading parameters in real-time
-2. **One-Click Bot Activation** — Deploy pre-configured or custom trading strategies with minimal setup
-3. **Multi-Asset Support** — Trade cryptocurrencies, stocks, and ETFs across multiple exchanges simultaneously
-4. **Real-Time Portfolio Dashboard** — Live P&L tracking, position monitoring, and performance metrics
-5. **Risk Management Tools** — Automated stop-loss, take-profit, and position sizing based on account equity
-6. **Strategy Backtesting** — Test strategies against historical data before deploying capital
-7. **Performance Analytics** — Detailed reports on win rate, ROI, Sharpe ratio, and drawdown analysis
-8. **Push Notifications** — Alerts for trade executions, market signals, and significant portfolio changes
+1. **Autonomous execution** — stop-losses, take-profits, auto-buys, and options (puts/calls) executed without prompting. Paper mode is the default until you deliberately switch to live.
+2. **Pluggable decision engine** — a `mode` setting selects `technical` or `llm`; the same interface leaves room to add `ml` later.
+3. **Multi-asset** — stocks, ETFs, options, and crypto, all through Alpaca (one broker covers all four).
+4. **Risk management** — automated stop-loss / take-profit / position sizing based on account equity, plus global guardrails (max position size, max daily loss, kill-switch).
+5. **Backtesting** — replay strategies against Alpaca historical data before enabling them live.
+6. **Local monitoring app** — live P&L, open positions, recent orders/signals, engine status, and a kill-switch.
+7. **Audit log** — every decision and order persisted locally for later review.
+8. **On-demand Claude analysis** — a manual, advisory-only feature (separate from the autonomous engine): one Claude run produces a week-ahead outlook for the watchlist with buy/sell suggestions, grounded via web search. It never places orders. Available from the CLI (`npm run analyze`), the dashboard, and the app.
 
-## Key Screens
+## Decision Engine Modes
 
-- **Dashboard** — Overview of active bots, portfolio value, daily/monthly returns, and key metrics
-- **Strategy Builder** — Visual interface to create or customize trading bots with parameters and conditions
-- **Market Watch** — Real-time price charts, technical indicators, and market sentiment analysis
-- **Portfolio & Positions** — Detailed view of holdings, entry/exit prices, and individual asset performance
-- **Analytics & Reports** — Historical performance data, strategy comparison, and risk metrics
+The engine is selected by config. All modes implement a common `Strategy` interface so they are interchangeable.
 
-## Core Components
+- **(1) Technical rules — build now.** Deterministic indicators (RSI, moving averages, etc.) plus threshold rules for entries, exits, and stops. Fully backtestable and easy to reason about.
+- **(2) LLM-driven / Claude — build now.** Market context is fed to Claude, which returns a *structured* trade proposal; the proposal is validated against the risk rules before any execution. Non-deterministic, so it stays gated behind paper mode and the risk guardrails.
+- **(3) Trained ML model — FUTURE SCOPE, not built yet.** A TensorFlow/Python model trained on historical data, plugged in behind the same `Strategy` interface. Requires a data pipeline and rigorous validation before it can be trusted; tracked as a roadmap item only.
 
-- **BotCard** — Reusable component displaying bot status, performance, and quick-action controls
-- **ChartView** — Interactive candlestick charts with technical indicators powered by react-native-svg
-- **StrategyForm** — Dynamic form builder for strategy parameters with validation and AI suggestions
-- **NotificationCenter** — Toast and push notification system for trade alerts and system messages
+## Key Screens (personal monitoring)
+
+- **Dashboard** — portfolio value, daily/total P&L, current engine mode, on/off state, and kill-switch.
+- **Positions** — open positions including options legs, with entry/exit and unrealized P&L.
+- **Activity** — recent orders, fills, and the decision/audit log.
+- **Settings** — engine mode, asset universe, risk parameters, and the paper/live toggle.
 
 ## Roadmap
 
-### Week 1
-- Set up Expo project structure with Redux Toolkit and navigation (React Navigation)
-- Implement authentication (Firebase or Auth0) and secure API key storage
-- Build Dashboard and Market Watch screens with mock data
+### Phase 1 — Foundations
+- Node service skeleton, config/secrets handling, SQLite persistence.
+- `BrokerAdapter` interface + `AlpacaAdapter`; connect to Alpaca **paper** trading.
+- Market-data ingestion (REST + WebSocket).
 
-### Week 2-3
-- Integrate Binance and Coinbase APIs for real-time market data via WebSocket
-- Develop Strategy Builder UI with dynamic parameter inputs
-- Create backtesting module connected to historical data service
+### Phase 2 — Engine + risk
+- `Strategy` interface and the technical-rules strategy.
+- Risk manager: stops, position sizing, guardrails, kill-switch.
+- Autonomous execution loop running in paper mode.
 
-### Week 4+
-- Deploy AI trading engine and connect to bot execution service
-- Implement push notifications and real-time portfolio updates
-- Launch closed beta testing with 100 users and iterate based on feedback
+### Phase 3 — Options + LLM mode
+- Options (puts/calls) support, including Level-3 multi-leg.
+- LLM-driven strategy (Claude) behind the `Strategy` interface.
+- Backtesting harness against historical data.
 
-## Monetisation
+### Phase 4 — App
+- Expo monitor app talking to the local server over WebSocket.
+- TestFlight build for personal use.
 
-- **Freemium Tier**: 1 active bot, basic strategies, limited backtest history, ad-supported
-- **Pro Tier** ($19/month): Unlimited bots, advanced strategies, full backtesting, priority support
-- **Enterprise Tier** ($99/month): Custom APIs, dedicated account manager, white-label options
-- **Performance Fee**: 10-20% commission on profits generated by AI-powered bots
-- **Premium Strategy Marketplace**: Sell verified community strategies (TradeWeave takes 30% cut)
+### Phase 5 — Go live (deliberate)
+- Switch to live API keys, start with small size, monitor closely.
+- Optionally subscribe to Algo Trader Plus ($99/mo) if real-time SIP/OPRA data is needed.
+
+### Future
+- Trained-ML strategy mode (see Decision Engine Modes #3).
+- Optional `IBKRAdapter` for deeper options/futures/global markets.
+
+## Costs (Alpaca, verified mid-2026)
+
+| Item | Cost |
+|---|---|
+| Stock & options commissions | **$0** (only pass-through regulatory fees) |
+| Paper trading | **Free** — Level-3 multi-leg options auto-approved in paper |
+| Market data — Basic | **Free**: real-time stocks via IEX feed, *indicative* options pricing |
+| Market data — Algo Trader Plus | **$99/mo**: full SIP feed + real-time OPRA options quotes |
+| Live options trading | One-time approval application (no fee) |
+
+**Note:** the free options data is *indicative*, not full real-time OPRA quotes. For timing-sensitive live options, plan to upgrade to the $99/mo tier before going live; paper and early development run fine on the free tier.
+
+## Risks & Notes
+
+- **Fully autonomous trading with real money is high-risk.** Paper-first development, hard risk guardrails (max position size, max daily loss), and a working kill-switch are mandatory before any live capital.
+- This is for personal use with your own capital; understand the suitability and regulatory implications of automated options trading before going live.
