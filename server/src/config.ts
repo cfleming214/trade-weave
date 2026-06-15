@@ -53,6 +53,27 @@ const schema = z.object({
   TAKE_PROFIT_PCT: numeric(0.1),
   MAX_DAILY_LOSS_PCT: numeric(0.03),
 
+  // --- Technical strategy tuning ---
+  STRATEGY_TIMEFRAME: z.string().optional().default('1Min'),
+  STRATEGY_FAST: numeric(10),
+  STRATEGY_SLOW: numeric(30),
+  STRATEGY_TREND: numeric(50),
+  STRATEGY_RSI_PERIOD: numeric(14),
+  // Entry veto: skip a crossover entry if RSI is already this hot. A crossover
+  // is a lagging momentum signal (RSI is typically ~70 at the cross), so this
+  // is deliberately lenient — a tighter cap blocks essentially all entries.
+  STRATEGY_RSI_OVERBOUGHT: numeric(80),
+  // Anti-whipsaw: minimum bars to hold before a crossover exit, bars to wait
+  // before re-entering a symbol after an exit, and a hysteresis band (fraction)
+  // the fast MA must clear the slow MA by for a crossover to count.
+  STRATEGY_MIN_HOLD_BARS: numeric(5),
+  STRATEGY_REENTRY_BARS: numeric(5),
+  STRATEGY_BAND: numeric(0.001),
+  // Optional extra filter: only take longs when the slow MA is rising. Off by
+  // default — the crossover is already the trend signal, and this laggy filter
+  // tends to veto the single entry at the very start of a trend.
+  STRATEGY_TREND_FILTER: boolish(false),
+
   PORT: numeric(4000),
   HOST: z.string().optional().default('127.0.0.1'),
 });
@@ -96,6 +117,18 @@ export const config = {
     stopLossPct: parsed.STOP_LOSS_PCT,
     takeProfitPct: parsed.TAKE_PROFIT_PCT,
     maxDailyLossPct: parsed.MAX_DAILY_LOSS_PCT,
+  },
+  strategy: {
+    timeframe: parsed.STRATEGY_TIMEFRAME,
+    fast: parsed.STRATEGY_FAST,
+    slow: parsed.STRATEGY_SLOW,
+    trend: parsed.STRATEGY_TREND,
+    rsiPeriod: parsed.STRATEGY_RSI_PERIOD,
+    rsiOverbought: parsed.STRATEGY_RSI_OVERBOUGHT,
+    minHoldBars: parsed.STRATEGY_MIN_HOLD_BARS,
+    reentryBars: parsed.STRATEGY_REENTRY_BARS,
+    band: parsed.STRATEGY_BAND,
+    trendFilter: parsed.STRATEGY_TREND_FILTER,
   },
   server: {
     port: parsed.PORT,

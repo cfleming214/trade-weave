@@ -96,7 +96,9 @@ export class RiskManager {
       const pct = p.unrealizedPlPct;
       if (pct <= -this.stopLossPct) {
         exits.push({ symbol: p.symbol, reason: `stop-loss hit (${(pct * 100).toFixed(2)}%)` });
-      } else if (pct >= this.takeProfitPct) {
+      } else if (this.takeProfitPct > 0 && pct >= this.takeProfitPct) {
+        // Take-profit is optional: set TAKE_PROFIT_PCT=0 to let winners run and
+        // exit only on the strategy's signal (e.g. a death-cross) or the stop.
         exits.push({ symbol: p.symbol, reason: `take-profit hit (${(pct * 100).toFixed(2)}%)` });
       }
     }

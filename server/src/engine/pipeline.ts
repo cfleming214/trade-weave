@@ -43,11 +43,13 @@ export function createPipeline() {
   return async function onTick({ engine, account, positions }: TickContext): Promise<void> {
     const broker = engine.broker;
 
-    // 1. Gather recent bars for the watchlist.
+    // 1. Gather recent bars for the watchlist (timeframe + lookback from config).
+    const timeframe = config.strategy.timeframe;
+    const lookback = Math.max(60, config.strategy.trend + 10);
     const bars = new Map();
     await Promise.all(
       config.engine.watchlist.map(async (symbol) => {
-        bars.set(symbol, await broker.getBars(symbol, '1Min', 60).catch(() => []));
+        bars.set(symbol, await broker.getBars(symbol, timeframe, lookback).catch(() => []));
       }),
     );
     const quotes = new Map(config.engine.watchlist.map((s) => [s, engine.feed.getQuote(s)]));

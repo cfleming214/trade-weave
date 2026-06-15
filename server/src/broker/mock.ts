@@ -13,11 +13,27 @@ import type {
 
 const log = createLogger('mock-broker');
 
+/** Deterministic PRNG (mulberry32) so the mock series is reproducible. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /**
  * In-memory broker used when no Alpaca keys are configured. Lets you run the
  * whole stack, see the dashboard, and exercise the strategy/execution loop
- * end-to-end without any external account. Prices follow a simple deterministic
- * random walk seeded per symbol so behaviour is reproducible across restarts.
+ * end-to-end without any external account.
+ *
+ * Prices follow a seeded random walk with mild upward drift and volatility —
+ * i.e. realistic-looking price action that actually trends and reverts, rather
+ * than a pure oscillation. Reproducible across restarts (seeded per symbol).
+ * NOTE: this is SIMULATED data, not real prices.
  */
 export class MockAdapter implements BrokerAdapter {
   readonly name = 'mock';
@@ -28,18 +44,39 @@ export class MockAdapter implements BrokerAdapter {
   private orders: Order[] = [];
   private seq = 0;
   private tick = 0;
+  private rng = new Map<string, () => number>();
+  private series = new Map<string, number[]>();
 
   private basePrice(symbol: string): number {
-    // Stable pseudo-price per symbol from its char codes.
     const seed = [...symbol].reduce((a, c) => a + c.charCodeAt(0), 0);
     return 50 + (seed % 400);
   }
 
+  /** Lazily extend the per-symbol random-walk series to at least length n+1. */
+  private ensureSeries(symbol: string, n: number): number[] {
+    let s = this.series.get(symbol);
+    if (!s) {
+      s = [this.basePrice(symbol)];
+      this.series.set(symbol, s);
+    }
+    let r = this.rng.get(symbol);
+    if (!r) {
+      const seed = [...symbol].reduce((a, c) => a * 31 + c.charCodeAt(0), 7);
+      r = mulberry32(seed);
+      this.rng.set(symbol, r);
+    }
+    const drift = 0.0004; // slight upward bias, like real markets
+    const vol = 0.012; // ~1.2% per-bar volatility
+    while (s.length <= n) {
+      const prev = s[s.length - 1]!;
+      const ret = drift + (r() - 0.5) * vol * 2;
+      s.push(Math.max(1, Number((prev * (1 + ret)).toFixed(2))));
+    }
+    return s;
+  }
+
   private priceFor(symbol: string): number {
-    const base = this.basePrice(symbol);
-    // Deterministic oscillation so signals actually fire over time.
-    const wobble = Math.sin((this.tick + base) / 7) * base * 0.03;
-    return Math.max(1, Number((base + wobble).toFixed(2)));
+    return this.ensureSeries(symbol, this.tick)[this.tick]!;
   }
 
   async getAccount(): Promise<Account> {
@@ -72,20 +109,25 @@ export class MockAdapter implements BrokerAdapter {
     return { symbol, price: this.priceFor(symbol), ts: new Date().toISOString() };
   }
 
-  async getBars(symbol: string, _timeframe: string, limit: number): Promise<Bar[]> {
+  async getBars(symbol: string, timeframe: string, limit: number): Promise<Bar[]> {
+    const end = Math.max(this.tick, limit - 1);
+    const s = this.ensureSeries(symbol, end);
+    const stepMs = timeframe === '1Day' ? 86_400_000 : timeframe === '1Hour' ? 3_600_000 : 60_000;
+    // Stable, bar-index-aligned timestamps (NOT Date.now()-relative) so a bar's
+    // timestamp only changes when a genuinely new bar appears — this is what
+    // lets the strategy's one-trade-per-bar gate work.
+    const EPOCH = 1_700_000_000_000;
+    const start = end - limit + 1;
     const bars: Bar[] = [];
-    const now = Date.now();
-    for (let i = limit; i > 0; i--) {
-      const t = this.tick - i;
-      const base = this.basePrice(symbol);
-      const close = Math.max(1, base + Math.sin((t + base) / 7) * base * 0.03);
+    for (let idx = start; idx <= end; idx++) {
+      const close = s[idx]!;
       bars.push({
         symbol,
-        ts: new Date(now - i * 60_000).toISOString(),
+        ts: new Date(EPOCH + idx * stepMs).toISOString(),
         open: close,
-        high: close * 1.005,
-        low: close * 0.995,
-        close: Number(close.toFixed(2)),
+        high: Number((close * 1.004).toFixed(2)),
+        low: Number((close * 0.996).toFixed(2)),
+        close,
         volume: 1000,
       });
     }

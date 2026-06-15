@@ -31,7 +31,7 @@ async function backtestSymbol(symbol: string, bars: Bar[], strategy: TechnicalSt
   let holding: { entry: number; qty: number } | null = null;
   const perSymbolBudget = STARTING_EQUITY * config.risk.maxPositionPct;
 
-  for (let i = 32; i < bars.length; i++) {
+  for (let i = config.strategy.trend + 2; i < bars.length; i++) {
     const slice = bars.slice(0, i + 1);
     const price = bars[i]!.close;
 
