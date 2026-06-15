@@ -1,6 +1,7 @@
 import { createBroker } from './broker/index.js';
 import { config } from './config.js';
 import { createLogger } from './logger.js';
+import { createPipeline } from './engine/pipeline.js';
 import { TradingEngine } from './engine/runtime.js';
 import { startServer } from './server/http.js';
 import { engineState } from './state.js';
@@ -15,6 +16,7 @@ async function main() {
 
   const broker = createBroker();
   const engine = new TradingEngine(broker);
+  engine.onTick = createPipeline();
 
   // Sanity check the broker connection at boot.
   try {

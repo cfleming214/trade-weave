@@ -1,4 +1,4 @@
-import type { BrokerAdapter } from '../broker/types.js';
+import type { Account, BrokerAdapter, Position } from '../broker/types.js';
 import { bus } from '../bus.js';
 import { config } from '../config.js';
 import { store } from '../db/index.js';
@@ -17,13 +17,19 @@ const log = createLogger('engine');
  * Phase 1 wires the loop and persistence; the strategy/execution hook is a
  * no-op placeholder that later phases fill in.
  */
+export interface TickContext {
+  engine: TradingEngine;
+  account: Account;
+  positions: Position[];
+}
+
 export class TradingEngine {
   readonly feed: MarketDataFeed;
   private timer: NodeJS.Timeout | null = null;
   private ticking = false;
 
-  /** Replaced in Phase 2 with the strategy+risk pipeline. */
-  onTick: (engine: TradingEngine) => Promise<void> = async () => {};
+  /** The strategy + risk + execution pipeline (set in index.ts). */
+  onTick: (ctx: TickContext) => Promise<void> = async () => {};
 
   constructor(public broker: BrokerAdapter) {
     this.feed = new MarketDataFeed(broker);
@@ -69,8 +75,8 @@ export class TradingEngine {
         unrealized_pl: unrealized,
       });
 
-      // Strategy + risk + execution pipeline (filled in Phase 2).
-      await this.onTick(this);
+      // Strategy + risk + execution pipeline.
+      await this.onTick({ engine: this, account, positions });
     } catch (err) {
       log.error('tick failed', (err as Error).message);
     } finally {
