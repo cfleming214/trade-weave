@@ -24,6 +24,9 @@ const schema = z.object({
   ALPACA_KEY_ID: z.string().optional().default(''),
   ALPACA_SECRET_KEY: z.string().optional().default(''),
   ALPACA_PAPER: boolish(true),
+  // Hard safety interlock: live (real-money) trading is refused unless this is
+  // explicitly set to true, even if ALPACA_PAPER=false and TRADING_ENABLED=true.
+  CONFIRM_LIVE: boolish(false),
 
   ANTHROPIC_API_KEY: z.string().optional().default(''),
 
@@ -57,9 +60,18 @@ export const config = {
     keyId: parsed.ALPACA_KEY_ID,
     secretKey: parsed.ALPACA_SECRET_KEY,
     paper: parsed.ALPACA_PAPER,
+    confirmLive: parsed.CONFIRM_LIVE,
     /** True only when real API keys are present. */
     get configured(): boolean {
       return Boolean(parsed.ALPACA_KEY_ID && parsed.ALPACA_SECRET_KEY);
+    },
+    /**
+     * True only when live trading is fully authorized: not paper AND the
+     * operator explicitly set CONFIRM_LIVE=true. The engine refuses to place
+     * real-money orders otherwise.
+     */
+    get liveAuthorized(): boolean {
+      return !parsed.ALPACA_PAPER && parsed.CONFIRM_LIVE;
     },
   },
   anthropic: {

@@ -15,9 +15,15 @@ class EngineState {
   /** Cached latest account snapshot for the dashboard. */
   lastAccount: Record<string, unknown> | null = null;
 
-  /** True only when the bot is permitted to place real orders right now. */
+  /**
+   * True only when the bot is permitted to place orders right now. In addition
+   * to the trading toggle and kill switch, live (real-money) trading requires
+   * the CONFIRM_LIVE interlock — paper trading is always allowed.
+   */
   canTrade(): boolean {
-    return this.tradingEnabled && !this.killSwitch;
+    if (!this.tradingEnabled || this.killSwitch) return false;
+    if (!config.alpaca.paper && !config.alpaca.confirmLive) return false;
+    return true;
   }
 
   setKillSwitch(on: boolean) {

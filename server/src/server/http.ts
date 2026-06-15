@@ -29,7 +29,11 @@ export function startServer(engine: TradingEngine) {
   app.get('/api/state', (_req, res) => {
     res.json({
       engine: engineState.snapshot(),
-      broker: { name: engine.broker.name, paper: engine.broker.paper },
+      broker: {
+        name: engine.broker.name,
+        paper: engine.broker.paper,
+        liveAuthorized: config.alpaca.liveAuthorized,
+      },
       account: engineState.lastAccount,
       watchlist: config.engine.watchlist,
     });

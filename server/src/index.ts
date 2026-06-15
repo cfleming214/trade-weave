@@ -38,10 +38,15 @@ async function main() {
   process.on('SIGTERM', shutdown);
 
   // Surface the safety posture clearly on every boot.
+  if (!broker.paper && !config.alpaca.confirmLive) {
+    log.warn(
+      'LIVE keys detected but CONFIRM_LIVE is not set — real-money orders are BLOCKED. Set CONFIRM_LIVE=true to authorize live trading.',
+    );
+  } else if (!broker.paper && config.alpaca.confirmLive) {
+    log.warn('⚠️  LIVE trading is AUTHORIZED — orders will use REAL money.');
+  }
   if (!engineState.canTrade()) {
     log.warn('Trading is currently DISABLED (observe-only). Enable via dashboard or TRADING_ENABLED=true.');
-  } else if (!broker.paper) {
-    log.warn('⚠️  LIVE trading is enabled with REAL money.');
   }
 }
 
