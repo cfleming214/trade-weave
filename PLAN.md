@@ -34,6 +34,7 @@ Everything runs locally except unavoidable outbound calls to Alpaca's market-dat
 5. **Backtesting** — replay strategies against Alpaca historical data before enabling them live.
 6. **Local monitoring app** — live P&L, open positions, recent orders/signals, engine status, and a kill-switch.
 7. **Audit log** — every decision and order persisted locally for later review.
+8. **On-demand Claude analysis** — a manual, advisory-only feature (separate from the autonomous engine): one Claude run produces a week-ahead outlook for the watchlist with buy/sell suggestions, grounded via web search. It never places orders. Available from the CLI (`npm run analyze`), the dashboard, and the app.
 
 ## Decision Engine Modes
 

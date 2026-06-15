@@ -12,7 +12,8 @@
     "start": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "backtest": "tsx src/backtest/run.ts"
+    "backtest": "tsx src/backtest/run.ts",
+    "analyze": "tsx src/advisor/run.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

@@ -20,6 +20,20 @@ Open the dashboard at **http://127.0.0.1:4000**.
 > Runs fine with **no keys** — it falls back to an in-memory mock broker so you
 > can see the dashboard and exercise the loop before connecting Alpaca.
 
+### On-demand Claude analysis
+
+Separate from the autonomous engine (which stays in `technical` mode), you can
+ask Claude for a one-off, **advisory-only** week-ahead read on your watchlist —
+it suggests buys/sells but never trades. Needs `ANTHROPIC_API_KEY`.
+
+```bash
+npm run analyze        # prints a week-ahead outlook + suggestions to the terminal
+```
+
+Or click **Ask Claude about the week** on the dashboard / the Analyze tab in the
+app. It uses Claude's web search (when `ANALYSIS_WEB_SEARCH=true`) to ground the
+view in current data, and costs roughly a few cents to ~$0.30 per run.
+
 ## Safety posture
 
 - `ALPACA_PAPER=true` and `TRADING_ENABLED=false` are the defaults. The bot
@@ -40,6 +54,8 @@ Open the dashboard at **http://127.0.0.1:4000**.
 | GET | `/api/signals` | recent strategy signals (audit log) |
 | GET | `/api/orders` | recent orders |
 | GET | `/api/equity` | equity snapshot history (for charts) |
+| GET | `/api/analysis/latest` | most recent on-demand Claude analysis |
+| POST | `/api/analysis` | run a one-off Claude week-ahead analysis (advisory) |
 | POST | `/api/control/start` \| `stop` | run/pause the engine loop |
 | POST | `/api/control/trading` | `{ on: bool }` enable/disable order placement |
 | POST | `/api/control/mode` | `{ mode: "technical" \| "llm" }` |

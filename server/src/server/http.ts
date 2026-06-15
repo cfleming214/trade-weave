@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { WebSocketServer, WebSocket } from 'ws';
+import { runAnalysis } from '../advisor/analyze.js';
 import { bus } from '../bus.js';
 import { config } from '../config.js';
 import { store } from '../db/index.js';
@@ -65,6 +66,30 @@ export function startServer(engine: TradingEngine) {
   });
   app.get('/api/equity', (req, res) => {
     res.json(store.equityHistory(Number(req.query.limit ?? 500)));
+  });
+
+  // --- On-demand Claude analysis (advisory only, never trades) ---
+  let analysisRunning = false;
+  app.get('/api/analysis/latest', (_req, res) => {
+    res.json({ analysis: store.latestAnalysis(), history: store.recentAnalyses(10) });
+  });
+  app.post('/api/analysis', async (_req, res) => {
+    if (analysisRunning) return res.status(409).json({ error: 'An analysis is already running.' });
+    if (!config.anthropic.configured) {
+      return res.status(400).json({ error: 'ANTHROPIC_API_KEY is not set — add it to server/.env.' });
+    }
+    analysisRunning = true;
+    log.info('on-demand Claude analysis requested');
+    try {
+      const result = await runAnalysis(engine.broker, config.engine.watchlist);
+      store.recordAnalysis(result);
+      res.json({ analysis: result });
+    } catch (err) {
+      log.error('analysis failed', (err as Error).message);
+      res.status(502).json({ error: (err as Error).message });
+    } finally {
+      analysisRunning = false;
+    }
   });
 
   // --- Control API ---

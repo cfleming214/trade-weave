@@ -7,13 +7,15 @@ import { useStore } from './src/useStore';
 import { Dashboard } from './src/screens/Dashboard';
 import { Positions } from './src/screens/Positions';
 import { Activity } from './src/screens/Activity';
+import { Analyze } from './src/screens/Analyze';
 import { Settings } from './src/screens/Settings';
 
-type Tab = 'dashboard' | 'positions' | 'activity' | 'settings';
+type Tab = 'dashboard' | 'positions' | 'activity' | 'analyze' | 'settings';
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: '📊' },
   { key: 'positions', label: 'Positions', icon: '📈' },
   { key: 'activity', label: 'Activity', icon: '🔔' },
+  { key: 'analyze', label: 'Analyze', icon: '🧠' },
   { key: 'settings', label: 'Settings', icon: '⚙️' },
 ];
 
@@ -45,6 +47,7 @@ export default function App() {
         {tab === 'dashboard' && <Dashboard store={store} />}
         {tab === 'positions' && <Positions store={store} />}
         {tab === 'activity' && <Activity store={store} />}
+        {tab === 'analyze' && <Analyze />}
         {tab === 'settings' && <Settings store={store} />}
       </View>
 

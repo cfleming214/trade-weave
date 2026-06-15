@@ -76,6 +76,15 @@ export interface SignalRow {
   strategy: string | null;
   executed: number;
 }
+export interface Analysis {
+  ts: string;
+  model: string;
+  text: string;
+  /** From the POST result. */
+  usedWebSearch?: boolean;
+  /** From the stored row. */
+  used_web_search?: number;
+}
 
 export const api = {
   getState: () => req<StateResponse>('/api/state'),
@@ -88,4 +97,6 @@ export const api = {
   setMode: (mode: 'technical' | 'llm') =>
     req('/api/control/mode', { method: 'POST', body: JSON.stringify({ mode }) }),
   flatten: () => req('/api/control/flatten', { method: 'POST' }),
+  runAnalysis: () => req<{ analysis: Analysis }>('/api/analysis', { method: 'POST' }),
+  latestAnalysis: () => req<{ analysis: Analysis | null }>('/api/analysis/latest'),
 };

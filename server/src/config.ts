@@ -29,6 +29,10 @@ const schema = z.object({
   CONFIRM_LIVE: boolish(false),
 
   ANTHROPIC_API_KEY: z.string().optional().default(''),
+  // Let the on-demand advisor use Claude's web search to ground its week-ahead
+  // view in current prices/news. Falls back to data-only analysis if disabled
+  // or unavailable.
+  ANALYSIS_WEB_SEARCH: boolish(true),
 
   ENGINE_MODE: z.enum(['technical', 'llm']).optional().default('technical'),
   TRADING_ENABLED: boolish(false),
@@ -76,6 +80,7 @@ export const config = {
   },
   anthropic: {
     apiKey: parsed.ANTHROPIC_API_KEY,
+    analysisWebSearch: parsed.ANALYSIS_WEB_SEARCH,
     get configured(): boolean {
       return Boolean(parsed.ANTHROPIC_API_KEY);
     },

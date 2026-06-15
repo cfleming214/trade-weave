@@ -55,6 +55,10 @@ market data → decision engine → risk checks → broker adapter → Alpaca
     grounded market snapshot. Requires `ANTHROPIC_API_KEY`; falls back to
     technical without one.
   - *(future)* trained ML model behind the same `Strategy` interface.
+- **On-demand Claude analysis** — separate from the autonomous loop: ask Claude
+  for a one-off, **advisory-only** week-ahead read on your watchlist with
+  buy/sell suggestions (`npm run analyze`, or a button in the dashboard/app). It
+  never trades and uses web search to ground in current data.
 - **Risk manager** — equity-based position sizing, stop-loss/take-profit
   brackets, server-side stop enforcement (works for crypto too), and a
   daily-loss circuit breaker.

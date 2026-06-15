@@ -124,6 +124,15 @@
         </div>
       </div>
 
+      <div class="card span4">
+        <h3>Ask Claude — week-ahead analysis</h3>
+        <div class="controls" style="margin-bottom:10px">
+          <button class="primary" id="analyze-btn" onclick="runAnalysis()">🧠 Ask Claude about the week</button>
+          <span id="analyze-meta" style="color:var(--muted);font-size:12px;align-self:center"></span>
+        </div>
+        <pre id="analysis-out" style="white-space:pre-wrap;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:var(--text);margin:0;line-height:1.5">Advisory only — never auto-traded. Click to run a one-off analysis of your watchlist.</pre>
+      </div>
+
       <div class="card span2">
         <h3>Equity Curve</h3>
         <canvas id="chart" width="800" height="180"></canvas>
@@ -235,6 +244,30 @@
         ctx.stroke();
       }
 
+      function renderAnalysis(a) {
+        if (!a) return;
+        $('analysis-out').textContent = a.text;
+        $('analyze-meta').textContent = `${a.model} · web search: ${a.used_web_search ?? a.usedWebSearch ? 'yes' : 'no'} · ${new Date(a.ts).toLocaleString()}`;
+      }
+      async function runAnalysis() {
+        const btn = $('analyze-btn');
+        btn.disabled = true;
+        const prev = btn.textContent;
+        btn.textContent = '⏳ Asking Claude… (~30-60s)';
+        $('analysis-out').textContent = 'Running analysis…';
+        try {
+          const r = await fetch('/api/analysis', { method: 'POST' });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error || 'failed');
+          renderAnalysis(data.analysis);
+        } catch (e) {
+          $('analysis-out').textContent = 'Analysis failed: ' + e.message;
+        } finally {
+          btn.disabled = false;
+          btn.textContent = prev;
+        }
+      }
+
       async function bootstrap() {
         const state = await api('/api/state');
         $('badge-broker').textContent = state.broker.name + (state.broker.paper ? ' · paper' : ' · LIVE');
@@ -244,6 +277,8 @@
         equitySeries = await api('/api/equity?limit=500');
         drawChart();
         (await api('/api/signals?limit=20')).reverse().forEach(addSignal);
+        const latest = await api('/api/analysis/latest');
+        if (latest.analysis) renderAnalysis(latest.analysis);
       }
 
       function connect() {

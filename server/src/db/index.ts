@@ -47,9 +47,18 @@ db.exec(`
     unrealized_pl REAL
   );
 
+  CREATE TABLE IF NOT EXISTS analyses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts TEXT NOT NULL,
+    model TEXT,
+    used_web_search INTEGER DEFAULT 0,
+    text TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_signals_ts ON signals(ts);
   CREATE INDEX IF NOT EXISTS idx_orders_ts ON orders(ts);
   CREATE INDEX IF NOT EXISTS idx_equity_ts ON equity_snapshots(ts);
+  CREATE INDEX IF NOT EXISTS idx_analyses_ts ON analyses(ts);
 `);
 
 log.info(`SQLite ready at ${DB_PATH}`);
@@ -67,6 +76,10 @@ const insertOrderStmt = db.prepare(
 const insertEquityStmt = db.prepare(
   `INSERT INTO equity_snapshots (ts, equity, cash, unrealized_pl)
    VALUES (@ts, @equity, @cash, @unrealized_pl)`,
+);
+const insertAnalysisStmt = db.prepare(
+  `INSERT INTO analyses (ts, model, used_web_search, text)
+   VALUES (@ts, @model, @used_web_search, @text)`,
 );
 
 export interface SignalRow {
@@ -109,5 +122,14 @@ export const store = {
       .prepare(`SELECT ts, equity, cash, unrealized_pl FROM equity_snapshots ORDER BY id DESC LIMIT ?`)
       .all(limit)
       .reverse();
+  },
+  recordAnalysis(a: { ts: string; model: string; usedWebSearch: boolean; text: string }) {
+    insertAnalysisStmt.run({ ts: a.ts, model: a.model, used_web_search: a.usedWebSearch ? 1 : 0, text: a.text });
+  },
+  latestAnalysis() {
+    return db.prepare(`SELECT ts, model, used_web_search, text FROM analyses ORDER BY id DESC LIMIT 1`).get() ?? null;
+  },
+  recentAnalyses(limit = 10) {
+    return db.prepare(`SELECT id, ts, model, used_web_search FROM analyses ORDER BY id DESC LIMIT ?`).all(limit);
   },
 };
