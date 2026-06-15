@@ -58,6 +58,27 @@ export function startServer(engine: TradingEngine) {
     }
   });
 
+  // Portfolio: every holding enriched with live price, daily change, P&L, and a
+  // price-history series for the graph — plus the recent trade history.
+  app.get('/api/portfolio', async (_req, res) => {
+    try {
+      const positions = await engine.broker.getPositions();
+      const enriched = await Promise.all(
+        positions.map(async (p) => {
+          const bars = await engine.broker.getBars(p.symbol, '1Day', 60).catch(() => []);
+          const closes = bars.map((b) => b.close);
+          const prevClose = closes.at(-2) ?? closes.at(-1) ?? p.currentPrice;
+          const change = Number((p.currentPrice - prevClose).toFixed(2));
+          const changePct = prevClose ? Number(((change / prevClose) * 100).toFixed(2)) : 0;
+          return { ...p, change, changePct, history: bars.map((b) => ({ ts: b.ts, close: b.close })) };
+        }),
+      );
+      res.json({ positions: enriched, orders: store.recentOrders(50) });
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
   app.get('/api/signals', (req, res) => {
     res.json(store.recentSignals(Number(req.query.limit ?? 50)));
   });

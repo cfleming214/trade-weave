@@ -51,6 +51,7 @@ view in current data, and costs roughly a few cents to ~$0.30 per run.
 | GET | `/api/state` | engine + broker + account snapshot |
 | GET | `/api/account` | live account + positions |
 | GET | `/api/positions` | open positions |
+| GET | `/api/portfolio` | positions enriched with daily change + price history, plus trade history |
 | GET | `/api/signals` | recent strategy signals (audit log) |
 | GET | `/api/orders` | recent orders |
 | GET | `/api/equity` | equity snapshot history (for charts) |

@@ -138,18 +138,23 @@
         <canvas id="chart" width="800" height="180"></canvas>
       </div>
       <div class="card span2">
-        <h3>Positions</h3>
-        <table>
-          <thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>Last</th><th>P&L</th></tr></thead>
-          <tbody id="positions"><tr><td colspan="5" style="color:var(--muted)">No positions</td></tr></tbody>
-        </table>
-      </div>
-
-      <div class="card span2">
         <h3>Recent Signals</h3>
         <table>
           <thead><tr><th>Time</th><th>Symbol</th><th>Action</th><th>Reason</th></tr></thead>
           <tbody id="signals"><tr><td colspan="4" style="color:var(--muted)">No signals yet</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="card span4">
+        <h3>Portfolio</h3>
+        <div id="portfolio"><span style="color:var(--muted)">No positions</span></div>
+      </div>
+
+      <div class="card span2">
+        <h3>Trade History</h3>
+        <table>
+          <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th></tr></thead>
+          <tbody id="trades"><tr><td colspan="5" style="color:var(--muted)">No trades yet</td></tr></tbody>
         </table>
       </div>
       <div class="card span2">
@@ -196,13 +201,67 @@
         const day = Number(a.equity) - Number(a.lastEquity ?? a.equity);
         $('daypl').textContent = fmt(day);
         $('daypl').className = 'stat-value ' + cls(day);
-        if (a.positions) renderPositions(a.positions);
       }
 
-      function renderPositions(ps) {
-        const tb = $('positions');
-        if (!ps.length) { tb.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No positions</td></tr>'; return; }
-        tb.innerHTML = ps.map((p) => `<tr><td>${p.symbol}</td><td>${p.qty}</td><td>${fmt(p.avgEntryPrice)}</td><td>${fmt(p.currentPrice)}</td><td class="${cls(p.unrealizedPl)}">${fmt(p.unrealizedPl)}</td></tr>`).join('');
+      function drawSpark(canvas, closes, color) {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        if (!closes || closes.length < 2) return;
+        const min = Math.min(...closes), max = Math.max(...closes);
+        const span = max - min || 1;
+        const x = (i) => (i / (closes.length - 1)) * (w - 2) + 1;
+        const y = (v) => h - 2 - ((v - min) / span) * (h - 4);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        closes.forEach((v, i) => (i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v))));
+        ctx.stroke();
+      }
+
+      function renderPortfolio(data) {
+        const wrap = $('portfolio');
+        const positions = data.positions || [];
+        if (!positions.length) {
+          wrap.innerHTML = '<span style="color:var(--muted)">No positions</span>';
+        } else {
+          wrap.innerHTML = positions
+            .map((p, i) => {
+              const dayCls = p.change > 0 ? 'pos' : p.change < 0 ? 'neg' : '';
+              return `<div style="display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--border)">
+                <div style="flex:0 0 90px"><div style="font-weight:600">${p.symbol}</div><div style="color:var(--muted);font-size:11px">${p.qty} @ ${fmt(p.avgEntryPrice)}</div></div>
+                <div style="flex:0 0 110px"><div>${fmt(p.currentPrice)}</div><div class="${dayCls}" style="font-size:12px">${p.change >= 0 ? '+' : ''}${fmt(p.change)} (${p.changePct >= 0 ? '+' : ''}${p.changePct}%)</div></div>
+                <div style="flex:0 0 120px"><div class="stat-label">Unrealized</div><div class="${cls(p.unrealizedPl)}">${fmt(p.unrealizedPl)} (${(p.unrealizedPlPct * 100).toFixed(2)}%)</div></div>
+                <div style="flex:1;text-align:right"><canvas id="spark-${i}" width="220" height="44" style="max-width:240px;height:44px"></canvas></div>
+              </div>`;
+            })
+            .join('');
+          positions.forEach((p, i) => {
+            const c = document.getElementById('spark-' + i);
+            if (c) drawSpark(c, (p.history || []).map((h) => h.close), p.change >= 0 ? '#2ecc71' : '#ff5c5c');
+          });
+        }
+        renderTrades(data.orders || []);
+      }
+
+      function renderTrades(orders) {
+        const tb = $('trades');
+        if (!orders.length) { tb.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No trades yet</td></tr>'; return; }
+        tb.innerHTML = orders
+          .slice(0, 25)
+          .map((o) => {
+            const sideCls = o.side === 'buy' ? 'pos' : 'neg';
+            return `<tr><td>${new Date(o.ts).toLocaleString()}</td><td>${o.symbol}</td><td class="${sideCls}">${o.side}</td><td>${Number(o.qty).toFixed(2)}</td><td>${o.filled_avg_price ? fmt(o.filled_avg_price) : '—'}</td></tr>`;
+          })
+          .join('');
+      }
+
+      async function loadPortfolio() {
+        try {
+          renderPortfolio(await api('/api/portfolio'));
+        } catch (e) {
+          /* ignore transient errors */
+        }
       }
 
       function addSignal(s) {
@@ -277,6 +336,7 @@
         equitySeries = await api('/api/equity?limit=500');
         drawChart();
         (await api('/api/signals?limit=20')).reverse().forEach(addSignal);
+        await loadPortfolio();
         const latest = await api('/api/analysis/latest');
         if (latest.analysis) renderAnalysis(latest.analysis);
       }
@@ -299,6 +359,7 @@
 
       bootstrap();
       connect();
+      setInterval(loadPortfolio, 15000); // refresh prices + history periodically
       window.addEventListener('resize', drawChart);
     </script>
   </body>

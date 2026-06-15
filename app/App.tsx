@@ -5,15 +5,15 @@ import { loadServerUrl } from './src/api';
 import { theme } from './src/theme';
 import { useStore } from './src/useStore';
 import { Dashboard } from './src/screens/Dashboard';
-import { Positions } from './src/screens/Positions';
+import { Portfolio } from './src/screens/Portfolio';
 import { Activity } from './src/screens/Activity';
 import { Analyze } from './src/screens/Analyze';
 import { Settings } from './src/screens/Settings';
 
-type Tab = 'dashboard' | 'positions' | 'activity' | 'analyze' | 'settings';
+type Tab = 'dashboard' | 'portfolio' | 'activity' | 'analyze' | 'settings';
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { key: 'positions', label: 'Positions', icon: '📈' },
+  { key: 'portfolio', label: 'Portfolio', icon: '📈' },
   { key: 'activity', label: 'Activity', icon: '🔔' },
   { key: 'analyze', label: 'Analyze', icon: '🧠' },
   { key: 'settings', label: 'Settings', icon: '⚙️' },
@@ -45,7 +45,7 @@ export default function App() {
 
       <View style={styles.body}>
         {tab === 'dashboard' && <Dashboard store={store} />}
-        {tab === 'positions' && <Positions store={store} />}
+        {tab === 'portfolio' && <Portfolio />}
         {tab === 'activity' && <Activity store={store} />}
         {tab === 'analyze' && <Analyze />}
         {tab === 'settings' && <Settings store={store} />}

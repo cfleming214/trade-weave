@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TradeWeave",
-    "slug": "tradeweave",
+    "slug": "trade-weave",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -22,6 +22,12 @@
     "android": {
       "package": "com.cfleming.tradeweave",
       "usesCleartextTraffic": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "341454fe-220d-4d05-80f2-3c8e4ae53265"
+      }
+    },
+    "owner": "simple-design"
   }
 }

@@ -22,7 +22,8 @@ to accept LAN connections from the phone.
 
 - **Dashboard** — equity, cash, P&L, engine state badges, and controls
   (start/stop, enable/disable trading, kill switch, flatten all).
-- **Positions** — open positions with entry/last/P&L.
+- **Portfolio** — every holding with live market price, daily change ($/%),
+  unrealized P&L, a price graph (react-native-svg), and full trade history.
 - **Activity** — recent strategy signals and the live server log.
 - **Settings** — server URL, decision-engine mode, watchlist.
 

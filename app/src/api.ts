@@ -62,6 +62,26 @@ export interface PositionRow {
   unrealizedPl: number;
   unrealizedPlPct: number;
 }
+export interface PortfolioPosition extends PositionRow {
+  change: number;
+  changePct: number;
+  history: Array<{ ts: string; close: number }>;
+}
+export interface OrderRow {
+  id: string;
+  ts: string;
+  symbol: string;
+  side: string;
+  qty: number;
+  type: string;
+  status: string;
+  filled_avg_price: number | null;
+  reason: string | null;
+}
+export interface PortfolioResponse {
+  positions: PortfolioPosition[];
+  orders: OrderRow[];
+}
 export interface StateResponse {
   engine: EngineState;
   broker: { name: string; paper: boolean };
@@ -99,4 +119,5 @@ export const api = {
   flatten: () => req('/api/control/flatten', { method: 'POST' }),
   runAnalysis: () => req<{ analysis: Analysis }>('/api/analysis', { method: 'POST' }),
   latestAnalysis: () => req<{ analysis: Analysis | null }>('/api/analysis/latest'),
+  getPortfolio: () => req<PortfolioResponse>('/api/portfolio'),
 };
