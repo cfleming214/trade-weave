@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TradeWeave — Dashboard</title>
+    <style>
+      :root {
+        --bg: #0b0e14;
+        --panel: #141925;
+        --panel-2: #1b2233;
+        --text: #e6e9ef;
+        --muted: #8b93a7;
+        --green: #2ecc71;
+        --red: #ff5c5c;
+        --accent: #5b8cff;
+        --border: #232b3d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+      }
+      header h1 { font-size: 18px; margin: 0; letter-spacing: 0.5px; }
+      .badges { display: flex; gap: 8px; align-items: center; }
+      .badge {
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--panel-2);
+        color: var(--muted);
+        border: 1px solid var(--border);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .badge.live { background: #3a1212; color: var(--red); border-color: #5a1a1a; }
+      .badge.paper { background: #13301f; color: var(--green); border-color: #1d5a38; }
+      .badge.on { background: #13301f; color: var(--green); }
+      .badge.off { background: #2a2f3d; color: var(--muted); }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        padding: 20px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .card.span2 { grid-column: span 2; }
+      .card.span4 { grid-column: span 4; }
+      .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+      .stat-value { font-size: 26px; font-weight: 600; margin-top: 6px; }
+      .pos { color: var(--green); }
+      .neg { color: var(--red); }
+      .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+      button {
+        background: var(--panel-2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 14px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      button:hover { border-color: var(--accent); }
+      button.danger { background: #3a1212; border-color: #5a1a1a; color: var(--red); }
+      button.primary { background: #1a2d52; border-color: #2a4170; color: var(--accent); }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+      th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+      .feed { max-height: 280px; overflow-y: auto; font-size: 12px; font-family: ui-monospace, monospace; }
+      .feed div { padding: 3px 0; border-bottom: 1px solid var(--border); color: var(--muted); }
+      .feed .ERROR { color: var(--red); }
+      .feed .WARN { color: #f1c40f; }
+      h3 { margin: 0 0 12px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+      canvas { width: 100%; height: 180px; display: block; }
+      select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🪡 TradeWeave</h1>
+      <div class="badges">
+        <span class="badge" id="badge-broker">broker</span>
+        <span class="badge" id="badge-mode">mode</span>
+        <span class="badge" id="badge-running">stopped</span>
+        <span class="badge" id="badge-trading">observe</span>
+        <span class="badge" id="badge-kill">armed</span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card"><div class="stat-label">Equity</div><div class="stat-value" id="equity">—</div></div>
+      <div class="card"><div class="stat-label">Cash</div><div class="stat-value" id="cash">—</div></div>
+      <div class="card"><div class="stat-label">Unrealized P&L</div><div class="stat-value" id="upl">—</div></div>
+      <div class="card"><div class="stat-label">Day P&L</div><div class="stat-value" id="daypl">—</div></div>
+
+      <div class="card span4">
+        <h3>Controls</h3>
+        <div class="controls">
+          <button class="primary" onclick="ctl('start')">▶ Start</button>
+          <button onclick="ctl('stop')">⏸ Stop</button>
+          <button onclick="setTrading(true)">Enable Trading</button>
+          <button onclick="setTrading(false)">Disable Trading</button>
+          <select id="mode-select" onchange="setMode(this.value)">
+            <option value="technical">Engine: Technical</option>
+            <option value="llm">Engine: LLM (Claude)</option>
+          </select>
+          <button class="danger" onclick="kill()">🛑 KILL SWITCH</button>
+          <button class="danger" onclick="flatten()">Flatten All</button>
+        </div>
+      </div>
+
+      <div class="card span2">
+        <h3>Equity Curve</h3>
+        <canvas id="chart" width="800" height="180"></canvas>
+      </div>
+      <div class="card span2">
+        <h3>Positions</h3>
+        <table>
+          <thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>Last</th><th>P&L</th></tr></thead>
+          <tbody id="positions"><tr><td colspan="5" style="color:var(--muted)">No positions</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="card span2">
+        <h3>Recent Signals</h3>
+        <table>
+          <thead><tr><th>Time</th><th>Symbol</th><th>Action</th><th>Reason</th></tr></thead>
+          <tbody id="signals"><tr><td colspan="4" style="color:var(--muted)">No signals yet</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card span2">
+        <h3>Activity Log</h3>
+        <div class="feed" id="log"></div>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const fmt = (n) => (n == null ? '—' : '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      const cls = (n) => (n > 0 ? 'pos' : n < 0 ? 'neg' : '');
+
+      let equitySeries = [];
+
+      async function api(path, opts) {
+        const r = await fetch(path, opts);
+        return r.json();
+      }
+      async function ctl(action) { await api('/api/control/' + action, { method: 'POST' }); }
+      async function setTrading(on) { await api('/api/control/trading', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on }) }); }
+      async function setMode(mode) { await api('/api/control/mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode }) }); }
+      async function kill() { if (confirm('Engage kill switch? No new orders will be placed.')) await api('/api/control/kill', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: true }) }); }
+      async function flatten() { if (confirm('Cancel all orders and CLOSE ALL positions?')) await api('/api/control/flatten', { method: 'POST' }); }
+
+      function renderEngine(s) {
+        $('badge-mode').textContent = 'engine: ' + s.mode;
+        $('badge-running').textContent = s.running ? 'running' : 'stopped';
+        $('badge-running').className = 'badge ' + (s.running ? 'on' : 'off');
+        $('badge-trading').textContent = s.tradingEnabled ? 'trading' : 'observe';
+        $('badge-trading').className = 'badge ' + (s.tradingEnabled ? 'on' : 'off');
+        $('badge-kill').textContent = s.killSwitch ? 'KILLED' : 'armed';
+        $('badge-kill').className = 'badge ' + (s.killSwitch ? 'live' : 'off');
+        $('mode-select').value = s.mode;
+      }
+
+      function renderAccount(a) {
+        if (!a) return;
+        $('equity').textContent = fmt(a.equity);
+        $('cash').textContent = fmt(a.cash);
+        const upl = Number(a.unrealizedPl ?? 0);
+        $('upl').textContent = fmt(upl);
+        $('upl').className = 'stat-value ' + cls(upl);
+        const day = Number(a.equity) - Number(a.lastEquity ?? a.equity);
+        $('daypl').textContent = fmt(day);
+        $('daypl').className = 'stat-value ' + cls(day);
+        if (a.positions) renderPositions(a.positions);
+      }
+
+      function renderPositions(ps) {
+        const tb = $('positions');
+        if (!ps.length) { tb.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No positions</td></tr>'; return; }
+        tb.innerHTML = ps.map((p) => `<tr><td>${p.symbol}</td><td>${p.qty}</td><td>${fmt(p.avgEntryPrice)}</td><td>${fmt(p.currentPrice)}</td><td class="${cls(p.unrealizedPl)}">${fmt(p.unrealizedPl)}</td></tr>`).join('');
+      }
+
+      function addSignal(s) {
+        const tb = $('signals');
+        if (tb.querySelector('td[colspan]')) tb.innerHTML = '';
+        const tr = document.createElement('tr');
+        const t = new Date(s.ts).toLocaleTimeString();
+        tr.innerHTML = `<td>${t}</td><td>${s.symbol}</td><td>${s.action}</td><td>${s.reason ?? ''}</td>`;
+        tb.prepend(tr);
+        while (tb.children.length > 20) tb.removeChild(tb.lastChild);
+      }
+
+      function addLog(l) {
+        const feed = $('log');
+        const div = document.createElement('div');
+        div.className = (l.level || '').toUpperCase();
+        div.textContent = `${new Date(l.ts).toLocaleTimeString()} (${l.scope}) ${l.msg}`;
+        feed.prepend(div);
+        while (feed.children.length > 100) feed.removeChild(feed.lastChild);
+      }
+
+      function drawChart() {
+        const c = $('chart');
+        const ctx = c.getContext('2d');
+        const w = (c.width = c.clientWidth);
+        const h = c.height;
+        ctx.clearRect(0, 0, w, h);
+        if (equitySeries.length < 2) return;
+        const vals = equitySeries.map((p) => p.equity);
+        const min = Math.min(...vals), max = Math.max(...vals);
+        const pad = (max - min) * 0.1 || 1;
+        const lo = min - pad, hi = max + pad;
+        const x = (i) => (i / (equitySeries.length - 1)) * w;
+        const y = (v) => h - ((v - lo) / (hi - lo)) * h;
+        ctx.strokeStyle = vals[vals.length - 1] >= vals[0] ? '#2ecc71' : '#ff5c5c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        equitySeries.forEach((p, i) => (i ? ctx.lineTo(x(i), y(p.equity)) : ctx.moveTo(x(i), y(p.equity))));
+        ctx.stroke();
+      }
+
+      async function bootstrap() {
+        const state = await api('/api/state');
+        $('badge-broker').textContent = state.broker.name + (state.broker.paper ? ' · paper' : ' · LIVE');
+        $('badge-broker').className = 'badge ' + (state.broker.paper ? 'paper' : 'live');
+        renderEngine(state.engine);
+        renderAccount(state.account);
+        equitySeries = await api('/api/equity?limit=500');
+        drawChart();
+        (await api('/api/signals?limit=20')).reverse().forEach(addSignal);
+      }
+
+      function connect() {
+        const ws = new WebSocket(`ws://${location.host}/ws`);
+        ws.onmessage = (ev) => {
+          const { type, payload } = JSON.parse(ev.data);
+          if (type === 'engine-state') renderEngine(payload);
+          else if (type === 'account-update') {
+            renderAccount(payload);
+            equitySeries.push({ ts: new Date().toISOString(), equity: payload.equity });
+            if (equitySeries.length > 500) equitySeries.shift();
+            drawChart();
+          } else if (type === 'signal') addSignal(payload);
+          else if (type === 'log') addLog(payload);
+        };
+        ws.onclose = () => setTimeout(connect, 2000);
+      }
+
+      bootstrap();
+      connect();
+      window.addEventListener('resize', drawChart);
+    </script>
+  </body>
+</html>
