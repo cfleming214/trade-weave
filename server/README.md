@@ -60,6 +60,7 @@ view in current data, and costs roughly a few cents to ~$0.30 per run.
 | POST | `/api/control/start` \| `stop` | run/pause the engine loop |
 | POST | `/api/control/trading` | `{ on: bool }` enable/disable order placement |
 | POST | `/api/control/mode` | `{ mode: "technical" \| "llm" }` |
+| POST | `/api/control/daily-loss` | `{ delta }` or `{ maxDailyLossPct }` — adjust the daily-loss guardrail live (clamped 0.5%–100%) |
 | POST | `/api/control/kill` | `{ on: bool }` kill switch |
 | POST | `/api/control/flatten` | cancel orders + close all positions |
 | WS | `/ws` | live stream of logs, quotes, signals, account updates |

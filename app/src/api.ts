@@ -46,6 +46,7 @@ export interface EngineState {
   mode: 'technical' | 'llm';
   tradingEnabled: boolean;
   killSwitch: boolean;
+  maxDailyLossPct: number;
 }
 export interface AccountSnapshot {
   equity: number;
@@ -116,6 +117,8 @@ export const api = {
   setTrading: (on: boolean) => req('/api/control/trading', { method: 'POST', body: JSON.stringify({ on }) }),
   setMode: (mode: 'technical' | 'llm') =>
     req('/api/control/mode', { method: 'POST', body: JSON.stringify({ mode }) }),
+  bumpDailyLoss: (delta: number) =>
+    req<EngineState>('/api/control/daily-loss', { method: 'POST', body: JSON.stringify({ delta }) }),
   flatten: () => req('/api/control/flatten', { method: 'POST' }),
   runAnalysis: () => req<{ analysis: Analysis }>('/api/analysis', { method: 'POST' }),
   latestAnalysis: () => req<{ analysis: Analysis | null }>('/api/analysis/latest'),

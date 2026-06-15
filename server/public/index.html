@@ -122,6 +122,13 @@
           <button class="danger" onclick="kill()">🛑 KILL SWITCH</button>
           <button class="danger" onclick="flatten()">Flatten All</button>
         </div>
+        <div class="controls" style="margin-top:10px;align-items:center">
+          <span class="stat-label">Daily-loss guardrail</span>
+          <span id="daily-loss-val" style="font-weight:600;font-size:15px">—</span>
+          <button onclick="bumpDailyLoss(-0.01)">− 1%</button>
+          <button class="primary" onclick="bumpDailyLoss(0.01)">+ 1% (loosen)</button>
+          <span style="color:var(--muted);font-size:11px">halts new entries once the day's loss exceeds this</span>
+        </div>
       </div>
 
       <div class="card span4">
@@ -177,6 +184,7 @@
       async function ctl(action) { await api('/api/control/' + action, { method: 'POST' }); }
       async function setTrading(on) { await api('/api/control/trading', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on }) }); }
       async function setMode(mode) { await api('/api/control/mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode }) }); }
+      async function bumpDailyLoss(delta) { await api('/api/control/daily-loss', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ delta }) }); }
       async function kill() { if (confirm('Engage kill switch? No new orders will be placed.')) await api('/api/control/kill', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: true }) }); }
       async function flatten() { if (confirm('Cancel all orders and CLOSE ALL positions?')) await api('/api/control/flatten', { method: 'POST' }); }
 
@@ -189,6 +197,7 @@
         $('badge-kill').textContent = s.killSwitch ? 'KILLED' : 'armed';
         $('badge-kill').className = 'badge ' + (s.killSwitch ? 'live' : 'off');
         $('mode-select').value = s.mode;
+        if (s.maxDailyLossPct != null) $('daily-loss-val').textContent = (s.maxDailyLossPct * 100).toFixed(2) + '%';
       }
 
       function renderAccount(a) {

@@ -20,7 +20,13 @@ export interface BusEvents {
   order: { ts: string; id: string; symbol: string; side: string; qty: number; status: string };
   fill: { ts: string; id: string; symbol: string; side: string; qty: number; price: number };
   'account-update': Record<string, unknown>;
-  'engine-state': { running: boolean; mode: string; tradingEnabled: boolean; killSwitch: boolean };
+  'engine-state': {
+    running: boolean;
+    mode: string;
+    tradingEnabled: boolean;
+    killSwitch: boolean;
+    maxDailyLossPct: number;
+  };
 }
 
 class TypedBus extends EventEmitter {

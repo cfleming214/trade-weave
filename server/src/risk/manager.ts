@@ -1,6 +1,7 @@
 import type { Account, Position } from '../broker/types.js';
 import { config } from '../config.js';
 import { createLogger } from '../logger.js';
+import { engineState } from '../state.js';
 
 const log = createLogger('risk');
 
@@ -28,7 +29,10 @@ export class RiskManager {
   private readonly maxPositionPct = config.risk.maxPositionPct;
   private readonly stopLossPct = config.risk.stopLossPct;
   private readonly takeProfitPct = config.risk.takeProfitPct;
-  private readonly maxDailyLossPct = config.risk.maxDailyLossPct;
+  /** Read live from engine state so it can be adjusted at runtime. */
+  private get maxDailyLossPct(): number {
+    return engineState.maxDailyLossPct;
+  }
 
   private isCrypto(symbol: string): boolean {
     return symbol.includes('/');

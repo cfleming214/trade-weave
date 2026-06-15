@@ -141,6 +141,24 @@ export function startServer(engine: TradingEngine) {
     res.json(engineState.snapshot());
   });
 
+  // Adjust the daily-loss guardrail at runtime. Accepts an absolute fraction
+  // (`maxDailyLossPct`) or a relative nudge (`delta`, e.g. +0.01 = +1pt).
+  app.post('/api/control/daily-loss', (req, res) => {
+    const current = engineState.maxDailyLossPct;
+    const next =
+      typeof req.body?.maxDailyLossPct === 'number'
+        ? req.body.maxDailyLossPct
+        : typeof req.body?.delta === 'number'
+          ? current + req.body.delta
+          : NaN;
+    if (!Number.isFinite(next)) {
+      return res.status(400).json({ error: 'provide a numeric maxDailyLossPct or delta' });
+    }
+    engineState.setMaxDailyLossPct(next);
+    log.info(`daily-loss guardrail set to ${(engineState.maxDailyLossPct * 100).toFixed(2)}%`);
+    res.json(engineState.snapshot());
+  });
+
   app.post('/api/control/flatten', async (_req, res) => {
     try {
       await engine.broker.cancelAllOrders();

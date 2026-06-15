@@ -12,6 +12,11 @@ class EngineState {
   killSwitch = false;
   mode: 'technical' | 'llm' = config.engine.mode;
   tradingEnabled = config.engine.tradingEnabled;
+  /**
+   * Daily-loss circuit-breaker threshold (fraction of equity), adjustable at
+   * runtime. Seeded from config; the risk manager reads this live value.
+   */
+  maxDailyLossPct = config.risk.maxDailyLossPct;
   /** Cached latest account snapshot for the dashboard. */
   lastAccount: Record<string, unknown> | null = null;
 
@@ -41,12 +46,20 @@ class EngineState {
     this.broadcast();
   }
 
+  /** Adjust the daily-loss guardrail, clamped to a sane range (0.5%–100%). */
+  setMaxDailyLossPct(pct: number) {
+    if (!Number.isFinite(pct)) return;
+    this.maxDailyLossPct = Math.min(1, Math.max(0.005, pct));
+    this.broadcast();
+  }
+
   snapshot() {
     return {
       running: this.running,
       mode: this.mode,
       tradingEnabled: this.tradingEnabled,
       killSwitch: this.killSwitch,
+      maxDailyLossPct: this.maxDailyLossPct,
     };
   }
 

@@ -56,6 +56,18 @@ export function Dashboard({ store }: { store: Store }) {
         </View>
       </Card>
 
+      <Card>
+        <SectionTitle>Daily-loss guardrail</SectionTitle>
+        <Text style={styles.guardValue}>
+          {engine ? (engine.maxDailyLossPct * 100).toFixed(2) + '%' : '—'}
+        </Text>
+        <Text style={styles.guardHelp}>Halts new entries once the day's loss exceeds this.</Text>
+        <View style={styles.btns}>
+          <Btn label="− 1%" onPress={() => void api.bumpDailyLoss(-0.01)} />
+          <Btn label="+ 1% (loosen)" kind="primary" onPress={() => void api.bumpDailyLoss(0.01)} />
+        </View>
+      </Card>
+
       {engine?.killSwitch ? (
         <Card style={{ borderColor: theme.red }}>
           <Text style={{ color: theme.red }}>
@@ -73,4 +85,6 @@ const styles = StyleSheet.create({
   badges: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 },
   row: { flexDirection: 'row', marginHorizontal: -4 },
   btns: { flexDirection: 'row', flexWrap: 'wrap' },
+  guardValue: { color: theme.text, fontSize: 22, fontWeight: '600', marginBottom: 2 },
+  guardHelp: { color: theme.muted, fontSize: 12, marginBottom: 10 },
 });
