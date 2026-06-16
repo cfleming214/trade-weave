@@ -63,9 +63,16 @@ export interface PositionRow {
   unrealizedPl: number;
   unrealizedPlPct: number;
 }
+export interface PositionReview {
+  verdict: 'working' | 'wrong';
+  action: 'hold' | 'close';
+  reason: string;
+  ts: string;
+}
 export interface PortfolioPosition extends PositionRow {
   change: number;
   changePct: number;
+  review: PositionReview | null;
   history: Array<{ ts: string; close: number }>;
 }
 export interface OrderRow {

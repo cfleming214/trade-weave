@@ -73,6 +73,13 @@ export function Portfolio() {
 
               <Sparkline data={p.history.map((h) => h.close)} width={CHART_W} height={64} />
 
+              {p.review ? (
+                <Text style={[styles.review, { color: p.review.verdict === 'working' ? theme.green : theme.red }]}>
+                  {p.review.verdict === 'working' ? '✓ working' : '✕ wrong'} ·{' '}
+                  {p.review.action === 'close' ? 'cutting' : 'holding'} — {p.review.reason}
+                </Text>
+              ) : null}
+
               <View style={styles.footerRow}>
                 <Text style={styles.footerLabel}>Unrealized P&L</Text>
                 <Text style={[styles.footerValue, { color: pnlColor(p.unrealizedPl) }]}>
@@ -117,6 +124,7 @@ const styles = StyleSheet.create({
   sub: { color: theme.muted, fontSize: 12, marginTop: 2 },
   price: { color: theme.text, fontSize: 16, fontWeight: '600' },
   change: { fontSize: 13, marginTop: 2 },
+  review: { fontSize: 12, marginTop: 8, lineHeight: 17 },
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   footerLabel: { color: theme.muted, fontSize: 12, textTransform: 'uppercase' },
   footerValue: { fontSize: 15, fontWeight: '600' },

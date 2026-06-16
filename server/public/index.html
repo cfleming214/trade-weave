@@ -237,11 +237,18 @@
           wrap.innerHTML = positions
             .map((p, i) => {
               const dayCls = p.change > 0 ? 'pos' : p.change < 0 ? 'neg' : '';
-              return `<div style="display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--border)">
-                <div style="flex:0 0 90px"><div style="font-weight:600">${p.symbol}</div><div style="color:var(--muted);font-size:11px">${p.qty} @ ${fmt(p.avgEntryPrice)}</div></div>
-                <div style="flex:0 0 110px"><div>${fmt(p.currentPrice)}</div><div class="${dayCls}" style="font-size:12px">${p.change >= 0 ? '+' : ''}${fmt(p.change)} (${p.changePct >= 0 ? '+' : ''}${p.changePct}%)</div></div>
-                <div style="flex:0 0 120px"><div class="stat-label">Unrealized</div><div class="${cls(p.unrealizedPl)}">${fmt(p.unrealizedPl)} (${(p.unrealizedPlPct * 100).toFixed(2)}%)</div></div>
-                <div style="flex:1;text-align:right"><canvas id="spark-${i}" width="220" height="44" style="max-width:240px;height:44px"></canvas></div>
+              const rv = p.review;
+              const rvColor = rv ? (rv.verdict === 'working' ? 'var(--green)' : 'var(--red)') : 'var(--muted)';
+              const rvLabel = rv ? `${rv.verdict === 'working' ? '✓ working' : '✕ wrong'} · ${rv.action === 'close' ? 'cutting' : 'holding'}` : 'assessing…';
+              const rvLine = rv ? `<div style="color:${rvColor};font-size:11px;margin-top:2px">${rvLabel} — ${rv.reason}</div>` : '';
+              return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+                <div style="display:flex;align-items:center;gap:14px">
+                  <div style="flex:0 0 90px"><div style="font-weight:600">${p.symbol}</div><div style="color:var(--muted);font-size:11px">${p.qty} @ ${fmt(p.avgEntryPrice)}</div></div>
+                  <div style="flex:0 0 110px"><div>${fmt(p.currentPrice)}</div><div class="${dayCls}" style="font-size:12px">${p.change >= 0 ? '+' : ''}${fmt(p.change)} (${p.changePct >= 0 ? '+' : ''}${p.changePct}%)</div></div>
+                  <div style="flex:0 0 120px"><div class="stat-label">Unrealized</div><div class="${cls(p.unrealizedPl)}">${fmt(p.unrealizedPl)} (${(p.unrealizedPlPct * 100).toFixed(2)}%)</div></div>
+                  <div style="flex:1;text-align:right"><canvas id="spark-${i}" width="220" height="44" style="max-width:240px;height:44px"></canvas></div>
+                </div>
+                ${rvLine}
               </div>`;
             })
             .join('');

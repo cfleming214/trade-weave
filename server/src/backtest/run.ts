@@ -68,14 +68,27 @@ async function backtestSymbol(symbol: string, bars: Bar[], strategy: TechnicalSt
       }
     }
 
-    const signals = await strategy.evaluate({
-      account: { equity: STARTING_EQUITY, cash: STARTING_EQUITY, buyingPower: STARTING_EQUITY, lastEquity: STARTING_EQUITY, currency: 'USD', tradingBlocked: false },
+    const ctx = {
+      account: { equity: STARTING_EQUITY, cash: STARTING_EQUITY, buyingPower: STARTING_EQUITY, lastEquity: STARTING_EQUITY, currency: 'USD' as const, tradingBlocked: false },
       positions,
       bars: new Map([[symbol, slice]]),
       quotes: new Map([[symbol, { symbol, price, ts: bars[i]!.ts }]]),
       watchlist: [symbol],
-    });
+    };
 
+    // Position management (exit decisions) — mirrors the live pipeline.
+    if (holding) {
+      const reviews = (await strategy.reviewPositions?.(ctx)) ?? [];
+      const close = reviews.find((r) => r.symbol === symbol && r.action === 'close');
+      if (close) {
+        trades.push({ symbol, entry: holding.entry, exit: price, pnlPct: (price - holding.entry) / holding.entry, reason: 'review' });
+        holding = null;
+        continue;
+      }
+    }
+
+    // Entries.
+    const signals = await strategy.evaluate(ctx);
     for (const s of signals) {
       if (s.action === 'buy' && !holding) {
         holding = { entry: price, qty: Math.max(1, Math.floor(perSymbolBudget / price)) };

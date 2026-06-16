@@ -54,7 +54,7 @@ const schema = z.object({
   MAX_DAILY_LOSS_PCT: numeric(0.03),
 
   // --- Technical strategy tuning ---
-  STRATEGY_TIMEFRAME: z.string().optional().default('1Min'),
+  STRATEGY_TIMEFRAME: z.string().optional().default('15Min'),
   STRATEGY_FAST: numeric(10),
   STRATEGY_SLOW: numeric(30),
   STRATEGY_TREND: numeric(50),

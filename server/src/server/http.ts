@@ -70,7 +70,8 @@ export function startServer(engine: TradingEngine) {
           const prevClose = closes.at(-2) ?? closes.at(-1) ?? p.currentPrice;
           const change = Number((p.currentPrice - prevClose).toFixed(2));
           const changePct = prevClose ? Number(((change / prevClose) * 100).toFixed(2)) : 0;
-          return { ...p, change, changePct, history: bars.map((b) => ({ ts: b.ts, close: b.close })) };
+          const review = engineState.lastReviews[p.symbol] ?? null;
+          return { ...p, change, changePct, review, history: bars.map((b) => ({ ts: b.ts, close: b.close })) };
         }),
       );
       res.json({ positions: enriched, orders: store.recentOrders(50) });

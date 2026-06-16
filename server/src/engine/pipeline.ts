@@ -57,11 +57,31 @@ export function createPipeline() {
     // 2. Server-side stop/take-profit enforcement always comes first.
     const forced = risk.forcedExits(positions);
 
-    // 3. Strategy signals.
+    const ctx = { account, positions, bars, quotes, watchlist: config.engine.watchlist };
+
+    // 3. Strategy signals (entries).
     const strategy = strategyFor(engineState.mode);
-    const signals = await strategy.evaluate({ account, positions, bars, quotes, watchlist: config.engine.watchlist });
+    const signals = await strategy.evaluate(ctx);
 
     const canTrade = engineState.canTrade();
+
+    // 3b. Review every OPEN position against its thesis (working vs. wrong, and
+    // if wrong whether to cut or keep trying). Always assessed — even in
+    // observe mode — so it's visible; closes only execute when trading is on.
+    const reviews = (await strategy.reviewPositions?.(ctx)) ?? [];
+    const reviewTs = new Date().toISOString();
+    const freshReviews: Record<string, { verdict: string; action: string; reason: string; ts: string }> = {};
+    for (const r of reviews) {
+      freshReviews[r.symbol] = { verdict: r.verdict, action: r.action, reason: r.reason, ts: reviewTs };
+      // Surface the interesting ones (a wrong thesis or an actual exit) to the
+      // audit log; a steady "working/hold" only updates the per-position badge.
+      if (r.verdict === 'wrong' || r.action === 'close') {
+        const executed = canTrade && r.action === 'close';
+        store.recordSignal({ ts: reviewTs, symbol: r.symbol, action: `review:${r.action}`, reason: `[${r.verdict}] ${r.reason}`, strategy: 'review', executed });
+        bus.emit('signal', { ts: reviewTs, symbol: r.symbol, action: `review:${r.action}`, reason: `[${r.verdict}] ${r.reason}`, strategy: 'review' });
+      }
+    }
+    engineState.lastReviews = freshReviews;
 
     // Record forced exits as signals too (audit trail).
     for (const f of forced) recordSignal({ symbol: f.symbol, action: 'close', reason: f.reason }, 'risk', canTrade);
@@ -69,8 +89,8 @@ export function createPipeline() {
     if (!canTrade) {
       // Observe-only: log signals, place nothing.
       for (const s of signals) if (s.action !== 'hold') recordSignal(s, strategy.name, false);
-      if (signals.length || forced.length)
-        log.info(`observe-only: ${signals.length} signal(s), ${forced.length} stop(s) — not trading`);
+      if (signals.length || forced.length || reviews.length)
+        log.info(`observe-only: ${signals.length} signal(s), ${forced.length} stop(s), ${reviews.length} review(s) — not trading`);
       return;
     }
 
@@ -85,6 +105,19 @@ export function createPipeline() {
       }
     }
     const forcedSymbols = new Set(forced.map((f) => f.symbol));
+
+    // 4b. Execute review decisions to cut positions whose thesis is done/wrong.
+    for (const r of reviews) {
+      if (r.action !== 'close' || forcedSymbols.has(r.symbol)) continue;
+      try {
+        await broker.closePosition(r.symbol);
+        log.info(`review-close ${r.symbol}: ${r.reason}`);
+        emitOrder(r.symbol, 'sell', 0, `review: ${r.reason}`);
+        forcedSymbols.add(r.symbol); // don't also re-enter this symbol this tick
+      } catch (err) {
+        log.error(`review-close failed ${r.symbol}`, (err as Error).message);
+      }
+    }
 
     // 5. Execute strategy signals.
     const dailyBreached = risk.dailyLossBreached(account);

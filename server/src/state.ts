@@ -19,6 +19,8 @@ class EngineState {
   maxDailyLossPct = config.risk.maxDailyLossPct;
   /** Cached latest account snapshot for the dashboard. */
   lastAccount: Record<string, unknown> | null = null;
+  /** Latest per-symbol position review (thesis still working / wrong). */
+  lastReviews: Record<string, { verdict: string; action: string; reason: string; ts: string }> = {};
 
   /**
    * True only when the bot is permitted to place orders right now. In addition

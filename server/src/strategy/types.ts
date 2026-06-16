@@ -38,10 +38,29 @@ export interface StrategyContext {
 }
 
 /**
+ * A re-assessment of an OPEN position: is the original entry thesis still
+ * working, or did we get it wrong — and if wrong, do we cut or hold and give it
+ * room to recover (bounded by the stop)?
+ */
+export interface PositionReview {
+  symbol: string;
+  verdict: 'working' | 'wrong';
+  /** 'close' = act on it now; 'hold' = keep the position open. */
+  action: 'hold' | 'close';
+  reason: string;
+}
+
+/**
  * Common interface for every decision engine mode (technical, llm, and the
  * future ml mode). Selected at runtime via config/dashboard.
  */
 export interface Strategy {
   readonly name: string;
+  /** Decide entries (and, for some strategies, exits) for the watchlist. */
   evaluate(ctx: StrategyContext): Promise<Signal[]>;
+  /**
+   * Optional: re-assess each currently-open position against its thesis every
+   * cycle. Strategies without this just rely on evaluate() + risk stops.
+   */
+  reviewPositions?(ctx: StrategyContext): Promise<PositionReview[]>;
 }

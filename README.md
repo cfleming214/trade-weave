@@ -59,6 +59,10 @@ market data → decision engine → risk checks → broker adapter → Alpaca
   for a one-off, **advisory-only** week-ahead read on your watchlist with
   buy/sell suggestions (`npm run analyze`, or a button in the dashboard/app). It
   never trades and uses web search to ground in current data.
+- **Position review** — every cycle the engine re-checks each open trade against
+  its original thesis: is it *working* or did it get it *wrong*? When wrong it
+  decides to cut, or to hold and give it room to recover (bounded by the stop).
+  The verdict shows on each holding in the dashboard/app and in the activity log.
 - **Risk manager** — equity-based position sizing, stop-loss/take-profit
   brackets, server-side stop enforcement (works for crypto too), and a
   daily-loss circuit breaker.
